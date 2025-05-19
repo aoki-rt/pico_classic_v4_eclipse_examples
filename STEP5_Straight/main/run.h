@@ -1,4 +1,4 @@
-// Copyright 2024 RT Corporation
+// Copyright 2025 RT Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,33 +15,30 @@
 #ifndef MAIN_RUN_H_
 #define MAIN_RUN_H_
 
-#include "device.h"
-#include "mytypedef.h"
 
+typedef enum { MOT_FORWARD=1, MOT_BACK=2 } t_CW_CCW;
 
 class RUN
 {
 public:
+	volatile double accel;
+	volatile double speed;
+	volatile double max_speed;
+	volatile double min_speed;
+	
 	RUN();
-	void accelerate(int len, int tar_speed);
-	void oneStep(int len, int tar_speed);
-	void decelerate(int len, int tar_speed);
-	bool moveFlagGet(void);
-	void stepIncRight(void);
-	void stepIncLeft(void);
-	void interruptControl(void);
+	void interrupt(void);
+	void counterClear(void);
+	void dirSet(t_CW_CCW dir_left, t_CW_CCW dir_right);
+	void speedSet(double l_speed, double r_speed);
+	void stepGet(void);
+	void stop(void);
+	void accelerate(int len, int finish_speed);
+	void oneStep(int len, int init_speed);
+	void decelerate(int len, int init_speed);
 
 private:
-    volatile unsigned int step_r, step_l;
-    double max_speed;
-    double min_speed;
-    double accel;
-    volatile double speed;
-
-     unsigned short step_hz_r;
-     unsigned short step_hz_l;
-
-    volatile bool motor_move;
+	int step_lr_len, step_lr;
 };
 
 extern RUN g_run;

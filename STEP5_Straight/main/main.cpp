@@ -1,4 +1,4 @@
-// Copyright 2024 RT Corporation
+// Copyright 2025 RT Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,29 +13,37 @@
 // limitations under the License.
 
 
+extern "C" {
 #include "device.h"
+}
 #include "run.h"
+#include "TMC5240.h"
+
 
 
 extern "C" void app_main(void)
 {
-	g_device.allInit();
+	allInit();
+	motorEnable();
+	delay(1);
+	g_tmc5240.init();
+	motorDisable();
 
     while (true) {
-    	while(g_device.switchGet()==0) {
+    	while(switchGet()==0) {
     		delay(10);
     	    continue;
     	}
-    	g_device.motorEnable();
+    	motorEnable();
     	delay(1000);
-    	g_device.LEDSet(0x01);
-    	g_run.accelerate(45, 200);
-    	g_device.LEDSet(0x07);
-    	g_run.oneStep(90, 200);
-    	g_device.LEDSet(0x0f);
-    	g_run.decelerate(45, 200);
-    	g_device.LEDSet(0);
+    	ledSet(0x01);
+    	g_run.accelerate(90, 350);
+    	ledSet(0x07);
+    	g_run.oneStep(180, 350);
+    	ledSet(0x0f);
+    	g_run.decelerate(90, 350);
+    	ledSet(0);
     	delay(1000);
-    	g_device.motorDisable();
+    	motorDisable();
     }
 }

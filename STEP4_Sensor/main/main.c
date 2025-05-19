@@ -1,4 +1,4 @@
-// Copyright 2024 RT Corporation
+// Copyright 2025 RT Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,11 +33,11 @@
 
 #define ADC_ATTEN           ADC_ATTEN_DB_12
 
-volatile short g_sensor_value_fr;
-volatile short g_sensor_value_fl;
-volatile short g_sensor_value_r;
-volatile short g_sensor_value_l;
-volatile short g_battery_value;
+volatile int g_sensor_value_fr;
+volatile int g_sensor_value_fl;
+volatile int g_sensor_value_r;
+volatile int g_sensor_value_l;
+volatile int g_battery_value;
 
 gptimer_handle_t gptimer = NULL;
 
