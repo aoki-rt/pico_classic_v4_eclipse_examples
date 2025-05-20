@@ -1,4 +1,4 @@
-// Copyright 2024 RT Corporation
+// Copyright 2025 RT Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,39 +13,24 @@
 // limitations under the License.
 
 
-#include "run.h"
+
 #include "parameter.h"
+#include "TMC5240.h"
+#include "run.h"
 
 RUN g_run;
 
-void runInterruptControl(void){
-	if(g_run.moveFlagGet()){
-		g_run.interruptControl();
-	}
+extern "C" void controlInterrupt(void){
+	g_run.interrupt();
 }
 
-void runIntteruptRight(void){
-	if (g_run.moveFlagGet()) {
-		g_run.stepIncRight();
-	}
-}
-
-void runIntteruptLeft(void){
-	if (g_run.moveFlagGet()) {
-		g_run.stepIncLeft();
-	}
-}
 
 RUN::RUN(){
     accel = 0.0;
-    speed = MIN_SPEED;
-    step_hz_r = MIN_HZ;
-    step_hz_l = MIN_HZ;
-    motor_move = 0;
+    speed = 0.0;
 }
 
-
-void RUN::interruptControl(void){
+void RUN::interrupt(void){
 	speed = speed + accel;
 
 	if(speed > max_speed){
@@ -55,134 +40,147 @@ void RUN::interruptControl(void){
 		speed = min_speed;
 	}
 
-	step_hz_l = step_hz_r = (unsigned short)(speed / PULSE);
-
 }
 
+void RUN::dirSet(t_CW_CCW dir_left, t_CW_CCW dir_right)
+{
+  g_tmc5240.write(TMC5240_RAMPMODE, dir_left, dir_right);
+}
 
-void RUN::accelerate(int len, int tar_speed)
+void RUN::counterClear(void) { g_tmc5240.write(TMC5240_XACTUAL, 0, 0); }
+
+void RUN::speedSet(double l_speed, double r_speed)
+{
+  g_tmc5240.write(
+    TMC5240_VMAX, (unsigned int)(l_speed / TMC5240_VELOCITY),
+    (unsigned int)(r_speed / TMC5240_VELOCITY));
+}
+
+void RUN::stepGet(void)
+{
+  step_lr = g_tmc5240.readXactual();
+  step_lr_len = (int)((float)step_lr / 2.0 * PULSE);
+}
+
+void RUN::stop(void) { g_tmc5240.write(TMC5240_VMAX, 0, 0); }
+
+void RUN::accelerate(int len, int finish_speed)
 {
 	int obj_step;
-	g_device.pwmtimerStop();
-	max_speed = tar_speed;
+
 	accel = 1.5;
-	step_r = 0;
-	step_l = 0;
 	speed = min_speed = MIN_SPEED;
-	step_hz_r = step_hz_l = (unsigned short)(speed / PULSE);
-	g_device.pwmHzSet(step_hz_l,step_hz_r);
-	obj_step = (int)((float)len * 2.0 / PULSE);
-	g_device.motorMoveDir(MOT_FORWARD,MOT_FORWARD);
+	max_speed = finish_speed;
+	counterClear();	
+	speedSet(MIN_SPEED,MIN_SPEED);
+	dirSet(MOT_FORWARD,MOT_FORWARD);
+	obj_step = (int)((float)len * 2.0 /PULSE);
 
-	g_device.pwmtimerStart();
-	motor_move = 1;
-
-	while ((step_r + step_l) < obj_step) {
-		continue;
+	while (1){
+		stepGet();
+		speedSet(speed,speed);
+		if(step_lr > obj_step){
+			break;
+		}
 	}
 }
 
-void RUN::oneStep(int len, int tar_speed)
+void RUN::oneStep(int len, int init_speed)
 {
 	int obj_step;
-	max_speed = tar_speed;
-	accel = 0.0;
-	step_r = 0;
-	step_l = 0;
-	speed = min_speed = tar_speed;
-	step_hz_r = step_hz_l = (unsigned short)(speed / PULSE);
-	g_device.pwmHzSet(step_hz_l,step_hz_r);
+	
+	accel = 0.0;	
+	max_speed = init_speed;
+	speed = min_speed = init_speed;
+	counterClear();	
+	speedSet(init_speed,init_speed);
+	dirSet(MOT_FORWARD,MOT_FORWARD);
 	obj_step = (int)((float)len * 2.0 / PULSE);
-	g_device.motorMoveDir(MOT_FORWARD,MOT_FORWARD);
 
-	while ((step_r + step_l) < obj_step) {
-		continue;
+	while (1){
+		stepGet();
+		speedSet(speed,speed);
+		if(step_lr > obj_step){
+			break;
+		}
 	}
 }
 
-void RUN::decelerate(int len, int tar_speed)
+void RUN::decelerate(int len, int init_speed)
 {
 	int obj_step;
-	max_speed = tar_speed;
-	accel = 0.0;
-	step_r = 0;
-	step_l = 0;
-	speed = min_speed = tar_speed;
-	step_hz_r = step_hz_l = (unsigned short)(speed / PULSE);
-	g_device.pwmHzSet(step_hz_l,step_hz_r);
+	
+	accel = 1.5;
+	max_speed = init_speed;
+	speed = min_speed = init_speed;
+	counterClear();	
+	speedSet(init_speed,init_speed);
+	dirSet(MOT_FORWARD,MOT_FORWARD);
 	obj_step = (int)((float)len * 2.0 / PULSE);
-	g_device.motorMoveDir(MOT_FORWARD,MOT_FORWARD);
 
-	while ((len - (step_r + step_l) / 2.0 * PULSE) >
-	(((speed * speed) - (MIN_SPEED * MIN_SPEED)) / (2.0 * 1000.0 * 1.5))) {
-		continue;
+	while(1){
+		stepGet();
+		speedSet(speed,speed);
+		if( (int)(len - step_lr_len) < 
+	 	    (int)(((speed * speed) - (MIN_SPEED * MIN_SPEED)) / (2.0 * 1000.0 * accel))) {
+				break;
+		}
 	}
+
 	accel = -1.5;
 	min_speed = MIN_SPEED;
 
-	while((step_r + step_l) < obj_step){
-		continue;
+	while (1){
+		stepGet();
+		speedSet(speed,speed);
+		if(step_lr > obj_step){
+			break;
+		}
 	}
-	motor_move = 0;
-	g_device.pwmtimerStop();
+	stop();
 }
 
 void RUN::rotate(t_direction dir, int times)
 {
 	int obj_step;
-	max_speed = 200.0;
-	accel = 0.3;
-	step_r = 0;
-	step_l = 0;
+	
+	accel = 1.5;
+	max_speed = 350.0;
 	speed = min_speed = MIN_SPEED;
-	step_hz_r = step_hz_l = (unsigned short)(speed / PULSE);
-	g_device.pwmHzSet(step_hz_l,step_hz_r);
+	counterClear();
+	speedSet(MIN_SPEED,MIN_SPEED);   
 	obj_step = (int)(TREAD_WIDTH * PI / 4.0 * (float)times * 2.0 / PULSE);
 
 	switch (dir) {
 	case right:
-		g_device.motorMoveDir(MOT_FORWARD,MOT_BACK);
-		g_device.pwmtimerStart();
-		motor_move = 1;
+      dirSet(MOT_FORWARD, MOT_BACK);  
 		break;
 	case left:
-		g_device.motorMoveDir(MOT_BACK,MOT_FORWARD);
-		g_device.pwmtimerStart();
-		motor_move = 1;
+      dirSet(MOT_BACK,MOT_FORWARD);
 		break;
 	default:
-		motor_move = 0;
+      dirSet(MOT_FORWARD, MOT_FORWARD);
 		break;
 	}
 
-	while (((obj_step - (step_r + step_l))/2.0 * PULSE) >
-	(((speed * speed) - (MIN_SPEED * MIN_SPEED)) / (2.0 * 1000.0 * 0.3))) {
-		continue;
+	while (1) {
+	  stepGet();
+	  speedSet(speed, speed);
+	  if ((int)((obj_step/2.0*PULSE) - step_lr_len) < (int)(((speed * speed) - (MIN_SPEED * MIN_SPEED)) / (2.0 * 1000.0 * accel))) {
+	    break;
+	  }
 	}
-	accel = -0.3;
+	
+	accel = -1.5;
 	min_speed = MIN_SPEED;
-
-	while ((step_r + step_l) < obj_step) {
-		continue;
+	
+	while (1) {
+	  stepGet();
+	  speedSet(speed, speed);
+	  if (step_lr > obj_step) {
+	    break;
+	  }
 	}
 
-	motor_move = 0;
-	g_device.pwmtimerStop();
-}
-
-bool RUN::moveFlagGet(void)
-{
-	return motor_move;
-}
-
-void RUN::stepIncRight(void)
-{
-	step_r = step_r+1;
-	g_device.pwmHzSetRight(step_hz_r);
-}
-
-void RUN::stepIncLeft(void)
-{
-	step_l = step_l+1;
-	g_device.pwmHzSetLeft(step_hz_l);
+	stop();
 }

@@ -43,15 +43,7 @@ extern void controlInterrupt(void);
  }
 
 
-
- void delay(int timer)
- {
- 	vTaskDelay((TickType_t)(timer/portTICK_PERIOD_MS));
- }
-
-
-
-
+//deviceのみ使用する関数
  void timerBegin(gptimer_handle_t *timer,int resolution_hz ,gptimer_count_direction_t counter){
  	gptimer_config_t timer_config = {};
  	timer_config.clk_src = GPTIMER_CLK_SRC_DEFAULT;
@@ -79,7 +71,6 @@ extern void controlInterrupt(void);
  	gptimer_start(timer);
  }
 
- 
 void spiInit(void){
 	spi_bus_config_t buscfg = {
 		.miso_io_num = SPI_MISO,
@@ -115,6 +106,7 @@ void spiInit(void){
 
 
 
+ 
  void allInit(void)
  {
  	gpio_reset_pin((gpio_num_t)LED0);
@@ -152,6 +144,10 @@ void spiInit(void){
  }
 
 
+ void delay(int timer)
+ {
+ 	vTaskDelay((TickType_t)(timer/portTICK_PERIOD_MS));
+ }
 
  //LED
  void ledSet(int led_data)
@@ -171,32 +167,6 @@ void spiInit(void){
  void motorDisable(void)
  {
  	gpio_set_level((gpio_num_t)MOTOR_EN,1);//Power Off
- }
-
-
- //switch
- unsigned char switchGet(void)
- {
- 	unsigned char ret = 0;
- 	if (gpio_get_level((gpio_num_t)SW_R) == 0) {
- 		do {
- 			delay(20);
- 		} while (gpio_get_level((gpio_num_t)SW_R) == 0);
- 		ret |= SW_RM;
- 	}
- 	if (gpio_get_level((gpio_num_t)SW_C) == 0) {
- 		do {
- 			delay(20);
- 		} while (gpio_get_level((gpio_num_t)SW_C) == 0);
- 		ret |= SW_CM;
- 	}
- 	if (gpio_get_level((gpio_num_t)SW_L) == 0) {
- 		do {
- 			delay(20);
- 		} while (gpio_get_level((gpio_num_t)SW_L) == 0);
- 		ret |= SW_LM;
- 	}
- 	return ret;
  }
 
 void spiRead32(unsigned char cmd_data, int *read_data, char cs){
@@ -255,3 +225,28 @@ void spiWrite32(unsigned char cmd_data, int write_data, char cs){
 	spi_device_release_bus(spi);
 
 }
+
+ //switch
+ unsigned char switchGet(void)
+ {
+ 	unsigned char ret = 0;
+ 	if (gpio_get_level((gpio_num_t)SW_R) == 0) {
+ 		do {
+ 			delay(20);
+ 		} while (gpio_get_level((gpio_num_t)SW_R) == 0);
+ 		ret |= SW_RM;
+ 	}
+ 	if (gpio_get_level((gpio_num_t)SW_C) == 0) {
+ 		do {
+ 			delay(20);
+ 		} while (gpio_get_level((gpio_num_t)SW_C) == 0);
+ 		ret |= SW_CM;
+ 	}
+ 	if (gpio_get_level((gpio_num_t)SW_L) == 0) {
+ 		do {
+ 			delay(20);
+ 		} while (gpio_get_level((gpio_num_t)SW_L) == 0);
+ 		ret |= SW_LM;
+ 	}
+ 	return ret;
+ }
