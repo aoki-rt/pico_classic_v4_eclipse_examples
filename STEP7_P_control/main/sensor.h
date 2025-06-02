@@ -1,4 +1,4 @@
-// Copyright 2024 RT Corporation
+// Copyright 2025 RT Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,29 +14,24 @@
 #ifndef MAIN_SENSOR_H_
 #define MAIN_SENSOR_H_
 
-
-#include "device.h"
+typedef struct
+{
+  short value;
+  short p_value;
+  short error;
+  short ref;
+  short th_wall;
+  short th_control;
+  bool is_wall;
+  bool is_control;
+} t_sensor;
 
 class SENSOR
 {
 public:
-	typedef struct
-	{
-	  short value;
-	  short p_value;
-	  short error;
-	  short ref;
-	  short th_wall;
-	  short th_control;
-	  bool is_wall;
-	  bool is_control;
-	} t_sensor;
-
-	t_sensor sen_r, sen_l, sen_fr, sen_fl;
-
-	volatile short battery_value;
-
 	SENSOR();
+	volatile t_sensor sen_r, sen_l, sen_fr, sen_fl;
+	volatile short battery_value;
 	void interrupt(void);
 
 private:

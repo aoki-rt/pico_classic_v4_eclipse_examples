@@ -1,4 +1,4 @@
-// Copyright 2024 RT Corporation
+// Copyright 2025 RT Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,12 +46,9 @@ void SEARCH::lefthand(void)
 
 void SEARCH::adachi(char gx, char gy)
 {
-  t_direction_glob glob_nextdir;
-  t_direction temp_next_dir;
+  t_global_direction glob_nextdir;
 
-  temp_next_dir = g_map_control.nextDirGet(gx, gy, &glob_nextdir);
-
-  switch (temp_next_dir) {
+  switch (g_map.nextDirGet(gx, gy, &glob_nextdir)) {
     case front:
       break;
     case right:
@@ -63,17 +60,19 @@ void SEARCH::adachi(char gx, char gy)
     case rear:
       g_run.rotate(right, 2);
       break;
+	default:
+	  break;
   }
 
   g_run.accelerate(HALF_SECTION, SEARCH_SPEED);
 
-  g_map_control.mypos.dir = glob_nextdir;
-  g_map_control.axisUpdate();
+  g_map.mypos.dir = glob_nextdir;
+  g_map.axisUpdate();
 
-  while ((g_map_control.mypos.x != gx) || (g_map_control.mypos.y != gy)) {
-    g_map_control.wallSet(g_sensor.sen_fr.is_wall, g_sensor.sen_r.is_wall, g_sensor.sen_l.is_wall);
+  while ((g_map.mypos.x != gx) || (g_map.mypos.y != gy)) {
+    g_map.wallSet(g_sensor.sen_fr.is_wall, g_sensor.sen_r.is_wall, g_sensor.sen_l.is_wall);
 
-    switch (g_map_control.nextDirGet(gx, gy, &glob_nextdir)) {
+    switch (g_map.nextDirGet(gx, gy, &glob_nextdir)) {
       case front:
         g_run.oneStep(SECTION, SEARCH_SPEED);
         break;
@@ -92,13 +91,15 @@ void SEARCH::adachi(char gx, char gy)
         g_run.rotate(right, 2);
         g_run.accelerate(HALF_SECTION, SEARCH_SPEED);
         break;
+	  default:
+		break;
     }
 
-    g_map_control.mypos.dir = glob_nextdir;  //dir update
-    g_map_control.axisUpdate();
+    g_map.mypos.dir = glob_nextdir;  //dir update
+    g_map.axisUpdate();
   }
 
-  g_map_control.wallSet(g_sensor.sen_fr.is_wall, g_sensor.sen_r.is_wall, g_sensor.sen_l.is_wall);
+  g_map.wallSet(g_sensor.sen_fr.is_wall, g_sensor.sen_r.is_wall, g_sensor.sen_l.is_wall);
   g_run.decelerate(HALF_SECTION, SEARCH_SPEED);
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2024 RT Corporation
+// Copyright 2025 RT Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,25 +16,19 @@
 #define MAIN_PARAMETER_H_
 
 
-#define MIN_HZ 40
-#define TIRE_DIAMETER (24.70)
-#define TREAD_WIDTH (31.5)
+#define TIRE_DIAMETER (48.0)
+#define TREAD_WIDTH (64.0)
+#define TREAD_CIRCUIT (TREAD_WIDTH * PI / 4)
 #define PI (3.141592)
-#define PULSE (TIRE_DIAMETER * PI / (35.0 / 10.0 * 20.0 * 4.0))
-#define MIN_SPEED (MIN_HZ * PULSE)
-
-#define MIN_SPEED (MIN_HZ * PULSE)
-
-#define INC_FREQ 3000
-#define DEC_FREQ 2000
+#define MIN_SPEED 30
 
 //Change the value to match your environment
-#define REF_SEN_R 507
-#define REF_SEN_L 394
+#define REF_SEN_R 552
+#define REF_SEN_L 327
 
-#define TH_SEN_R 250
-#define TH_SEN_L 208
-#define TH_SEN_FR 155
+#define TH_SEN_R 173
+#define TH_SEN_L 169
+#define TH_SEN_FR 145
 #define TH_SEN_FL 134
 
 #define CONTH_SEN_R TH_SEN_R

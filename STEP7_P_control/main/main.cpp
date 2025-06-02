@@ -1,4 +1,4 @@
-// Copyright 2024 RT Corporation
+// Copyright 2025 RT Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,44 +12,50 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
 
-#include "device.h"
+extern "C"{
+	#include "device.h"
+	#include "stdio.h"
+}
 #include "run.h"
 #include "sensor.h"
+#include "TMC5240.h"
 
-using namespace std;
 
 extern "C" void app_main(void)
 {
 	char temp;
-	g_device.allInit();
+	allInit();
+	motorEnable();
+	delay(1);
+	g_tmc5240.init();
+	motorDisable();
 
     while (true) {
     	while(true){
-    		temp = g_device.switchGet();
+    		temp = switchGet();
     		if(temp!=0){
     			break;
     		}
     		delay(10);
     	}
 
-    	if (temp == SW_RM) {
-    	    while (1) {
-    	    	std::cout<<"r_sen  is  " << g_sensor.sen_r.value << std::endl;
-    	    	std::cout<<"fr_sen  is  " << g_sensor.sen_fr.value << std::endl;
-    	    	std::cout<<"fl_sen  is  " << g_sensor.sen_fl.value << std::endl;
-    	    	std::cout<<"l_sen  is  " << g_sensor.sen_l.value << std::endl;
-    	    	std::cout<<"VDD  is  " << g_sensor.battery_value << std::endl;
+    	if (temp == SW_LM) {
+    	    while (true) {
+				printf("r_sen	is %d\n\r", g_sensor.sen_r.value);
+				printf("fr_sen	is %d\n\r", g_sensor.sen_fr.value);
+				printf("fl_sen	is %d\n\r", g_sensor.sen_fl.value);
+				printf("l_sen	is %d\n\r", g_sensor.sen_l.value);
+				printf("VDD	is %dmV\n\r", g_sensor.battery_value);
     	    	delay(100);
     	    }
     	}
-    	g_device.motorEnable();
+    	motorEnable();
     	delay(1000);
-    	g_run.accelerate(45, 200);
-    	g_run.oneStep(90 * 3, 200);
-    	g_run.decelerate(45, 200);
+    	g_run.accelerate(90, 350);
+    	g_run.oneStep(180 * 3, 350);
+    	g_run.decelerate(90, 350);
     	delay(1000);
-    	g_device.motorDisable();
+    	motorDisable();
     }
 }

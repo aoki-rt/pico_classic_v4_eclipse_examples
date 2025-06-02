@@ -15,7 +15,7 @@
 #ifndef MAIN_SENSOR_H_
 #define MAIN_SENSOR_H_
 
-#include "device.h"
+
 
 typedef struct
 {
@@ -32,37 +32,9 @@ typedef struct
 class SENSOR
 {
 public:
-	typedef struct
-	{
-	  short value;
-	  short p_value;
-	  short error;
-	  short ref;
-	  short th_wall;
-	  short th_control;
-	  bool is_wall;
-	  bool is_control;
-	} t_sensor;
-
-	typedef struct
-	{
-	  double control;
-	  double error;
-	  double p_error;
-	  double diff;
-	  double sum;
-	  double sum_max;
-	  double kp;
-	  double kd;
-	  double ki;
-	  bool enable;
-	} t_control;
-
-	t_sensor sen_r, sen_l, sen_fr, sen_fl;
-	t_control con_wall;
-	volatile short battery_value;
-
 	SENSOR();
+	volatile t_sensor sen_r, sen_l, sen_fr, sen_fl;
+	volatile short battery_value;
 	void interrupt(void);
 
 

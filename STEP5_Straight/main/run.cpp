@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern "C" {
-#include "device.h"
-}
 #include "parameter.h"
 #include "TMC5240.h"
 #include "run.h"
@@ -71,7 +68,8 @@ void RUN::accelerate(int len, int finish_speed)
 	int obj_step;
 
 	accel = 1.5;
-	speed = min_speed = MIN_SPEED;
+	speed = MIN_SPEED;
+	min_speed = MIN_SPEED;
 	max_speed = finish_speed;
 	counterClear();	
 	speedSet(MIN_SPEED,MIN_SPEED);
@@ -93,7 +91,8 @@ void RUN::oneStep(int len, int init_speed)
 	
 	accel = 0.0;	
 	max_speed = init_speed;
-	speed = min_speed = init_speed;
+	speed = init_speed;
+	min_speed = init_speed;
 	counterClear();	
 	speedSet(init_speed,init_speed);
 	dirSet(MOT_FORWARD,MOT_FORWARD);
@@ -114,7 +113,8 @@ void RUN::decelerate(int len, int init_speed)
 	
 	accel = 1.5;
 	max_speed = init_speed;
-	speed = min_speed = init_speed;
+	speed = init_speed;
+	min_speed = init_speed;
 	counterClear();	
 	speedSet(init_speed,init_speed);
 	dirSet(MOT_FORWARD,MOT_FORWARD);

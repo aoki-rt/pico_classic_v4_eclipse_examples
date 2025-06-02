@@ -16,16 +16,16 @@
 
 #include "run.h"
 #include "map_manager.h"
+#include "parameter.h"
 
 FAST g_fast;
 
-void FAST::run(short gx, short gy)
+void FAST::run(char gx, char gy)
 {
-  t_direction_glob glob_nextdir;
+  t_global_direction glob_nextdir;
   int straight_count = 0;
 
-  t_direction temp_next_dir = g_map_control.nextDir2Get(gx, gy, &glob_nextdir);
-  switch (temp_next_dir) {
+  switch (g_map.nextDir2Get(gx, gy, &glob_nextdir)) {
     case right:
     	g_run.rotate(right, 1);  //right turn
       break;
@@ -41,24 +41,28 @@ void FAST::run(short gx, short gy)
 
   g_run.accelerate(HALF_SECTION, SEARCH_SPEED);
   straight_count = 0;
-  g_map_control.mypos.dir = glob_nextdir;
-  g_map_control.axisUpdate();
+  g_map.mypos.dir = glob_nextdir;
+  g_map.axisUpdate();
 
-  while ((g_map_control.mypos.x != gx) || (g_map_control.mypos.y != gy)) {
-    switch (g_map_control.nextDir2Get(gx, gy, &glob_nextdir)) {
+  while ((g_map.mypos.x != gx) || (g_map.mypos.y != gy)) {
+    switch (g_map.nextDir2Get(gx, gy, &glob_nextdir)) {
       case front:
         straight_count++;
         break;
       case right:
-        g_run.straight(straight_count * SECTION, SEARCH_SPEED, MAX_SPEED, SEARCH_SPEED);
-        straight_count = 0;
+	  	if(straight_count>0){
+	        g_run.straight(straight_count * SECTION, SEARCH_SPEED, MAX_SPEED, SEARCH_SPEED);
+        	straight_count = 0;
+		}
         g_run.decelerate(HALF_SECTION, SEARCH_SPEED);
         g_run.rotate(right, 1);
         g_run.accelerate(HALF_SECTION, SEARCH_SPEED);
         break;
       case left:
-        g_run.straight(straight_count * SECTION, SEARCH_SPEED, MAX_SPEED, SEARCH_SPEED);
-        straight_count = 0;
+		if(straight_count>0){
+	        g_run.straight(straight_count * SECTION, SEARCH_SPEED, MAX_SPEED, SEARCH_SPEED);
+    	    straight_count = 0;
+		}
         g_run.decelerate(HALF_SECTION, SEARCH_SPEED);
         g_run.rotate(left, 1);
         g_run.accelerate(HALF_SECTION, SEARCH_SPEED);
@@ -66,8 +70,8 @@ void FAST::run(short gx, short gy)
       default:
         break;
     }
-    g_map_control.mypos.dir = glob_nextdir;
-    g_map_control.axisUpdate();
+    g_map.mypos.dir = glob_nextdir;
+    g_map.axisUpdate();
   }
   if (straight_count > 0) {
     g_run.straight(straight_count * SECTION, SEARCH_SPEED, MAX_SPEED, SEARCH_SPEED);

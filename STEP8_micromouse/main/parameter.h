@@ -1,4 +1,4 @@
-// Copyright 2024 RT Corporation
+// Copyright 2025 RT Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,45 +15,46 @@
 #ifndef MAIN_PARAMETER_H_
 #define MAIN_PARAMETER_H_
 
-#include "mytypedef.h"
 
-#define TIRE_DIAMETER (24.70)
-#define TREAD_WIDTH (31.5)
+#define TIRE_DIAMETER (48.00)
+#define TREAD_WIDTH (69.5)
 #define PI (3.141592)
+
 #define TREAD_CIRCUIT (TREAD_WIDTH * PI / 4)
-#define PULSE (TIRE_DIAMETER * PI / (35.0 / 10.0 * 20.0 * 8.0))
+
 #define MIN_HZ 40
 
 //Change the value to match your environment
-#define REF_SEN_R 516
-#define REF_SEN_L 434
+#define REF_SEN_R 569
+#define REF_SEN_L 397
 
-#define TH_SEN_R 300
-#define TH_SEN_L 200
-#define TH_SEN_FR 100
-#define TH_SEN_FL 100
+#define TH_SEN_R 160
+#define TH_SEN_L 123
+#define TH_SEN_FR 55
+#define TH_SEN_FL 40
 
-#define CONTH_SEN_R TH_SEN_R
-#define CONTH_SEN_L TH_SEN_L
+#define CONTH_SEN_R (TH_SEN_R)
+#define CONTH_SEN_L (TH_SEN_L)
 
-#define CON_WALL_KP 0.09
+#define GOAL_X 7
+#define GOAL_Y 7
+
+#define CON_WALL_KP 0.15
 #define SEARCH_ACCEL 1.5
 #define TURN_ACCEL 0.3
 
-#define SEARCH_SPEED 200
+#define SEARCH_SPEED 350
 #define MAX_SPEED 600
-#define MIN_SPEED (MIN_HZ * PULSE)
+#define MIN_SPEED 30
 
-#define GOAL_X 3
-#define GOAL_Y 3
 
 #define INC_FREQ 3000
 #define DEC_FREQ 2000
 
-#define BATT_MAX 4000
-#define BATT_MIN 3800
+#define BATT_MAX 12000
+#define BATT_MIN 10000
 
-#define HALF_SECTION 45
-#define SECTION 90
+#define HALF_SECTION 90
+#define SECTION 180
 
 #endif /* MAIN_PARAMETER_H_ */

@@ -12,113 +12,118 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <iomanip>
+
+extern "C"{
+	#include "device.h"
+}
+
 #include "adjust.h"
-#include "device.h"
+#include "flash.h"
 #include "map_manager.h"
 #include "misc.h"
+#include "parameter.h"
 #include "sensor.h"
 #include "run.h"
 
-#include "flash.h"
 
 
 ADJUST g_adjust;
 
 void ADJUST::mapView(void)
 {
-
-  std::cout << "\x1b[2j";
-  std::cout << "\x1b[0;0H" <<std::endl;
-  std::cout << "+";
-  for (int i = 0; i < MAZESIZE_X; i++) {
-    switch (g_map_control.wallDataGet(i, MAZESIZE_Y - 1, north)) {  //black color is"[30m"
-      case NOWALL:
-        std::cout << "\x1b[37m  +";  //NOWALL
-        break;
-      case WALL:
-    	  std::cout << "\x1b[37m--+";  //WALL
-        break;
-      case _UNKNOWN:
-    	  std::cout << "\x1b[31m--+";  //UNNOWN
-        break;
-      default:
-    	  std::cout << "\x1b[33m--+";  //VWALL
-        break;
-    }
-  }
-  std::cout<<std::endl;
-  for (int j = (MAZESIZE_Y - 1); j > -1; j--) {
-    switch (g_map_control.wallDataGet(0, j, west)) {
-      case NOWALL:
-    	  std::cout << "\x1b[37m ";  //NOWALL
-        break;
-      case WALL:
-    	  std::cout << "\x1b[37m|";  //WALL
-        break;
-      case _UNKNOWN:
-    	  std::cout << "\x1b[31m|";  //UNNOWN
-        break;
-      default:
-    	  std::cout << "\x1b[33m|";  //VWALL
-        break;
-    }
-    for (int i = 0; i < MAZESIZE_X; i++) {
-      switch (g_map_control.wallDataGet(i, j, east)) {
-        case NOWALL:
-        	std::cout << "\x1b[37m   ";  //NOWALL
-          break;
-        case WALL:
-        	std::cout << "\x1b[37m  |";  //WALL
-          break;
-        case _UNKNOWN:
-        	std::cout << "\x1b[31m  |";  //UNNOWN
-          break;
-        default:
-        	std::cout << "\x1b[33m  |";  //VWALL
-          break;
-      }
-    }
-    std::cout<<std::endl<<"+";
-    for (int i = 0; i < MAZESIZE_X; i++) {
-      switch (g_map_control.wallDataGet(i, j, south)) {
-        case NOWALL:
-        	std::cout << "\x1b[37m  +";  //NOWALL
-          break;
-        case WALL:
-        	std::cout << "\x1b[37m--+";  //WALL
-          break;
-        case _UNKNOWN:
-        	std::cout << "\x1b[31m--+";  //UNNOWN
-          break;
-        default:
-        	std::cout << "\x1b[33m--+";  //VWALL
-          break;
-      }
-    }
-    std::cout<<std::endl;
-  }
+	usbPrintf("\x1b[2j");
+	usbPrintf("\x1b[0;0H");
+	usbPrintf("\n\r+");
+	for (int i = 0; i < MAZESIZE_X; i++) {
+	  switch (g_map.wallDataGet(i, MAZESIZE_Y - 1, north)) {  //黒色は"[30m"
+	    case NOWALL:
+	      usbPrintf("\x1b[37m  +");  //NOWALL
+	      break;
+	    case WALL:
+	      usbPrintf("\x1b[37m--+");  //WALL
+	      break;
+	    case _UNKNOWN:
+	      usbPrintf("\x1b[31m--+");  //UNNOWN
+	      break;
+	    default:
+	      usbPrintf("\x1b[33m--+");  //VWALL
+	      break;
+	  }
+	}
+	usbPrintf("\n\r");
+	for (int j = (MAZESIZE_Y - 1); j > -1; j--) {
+	  switch (g_map.wallDataGet(0, j, west)) {
+	    case NOWALL:
+	      usbPrintf("\x1b[37m ");  //NOWALL
+	      break;
+	    case WALL:
+	      usbPrintf("\x1b[37m|");  //WALL
+	      break;
+	    case _UNKNOWN:
+	      usbPrintf("\x1b[31m|");  //UNNOWN
+	      break;
+	    default:
+	      usbPrintf("\x1b[33m|");  //VWALL
+	      break;
+	  }
+	  for (int i = 0; i < MAZESIZE_X; i++) {
+	    switch (g_map.wallDataGet(i, j, east)) {
+	      case NOWALL:
+	        usbPrintf("\x1b[37m   ");  //NOWALL
+	        break;
+	      case WALL:
+	        usbPrintf("\x1b[37m  |");  //WALL
+	        break;
+	      case _UNKNOWN:
+	        usbPrintf("\x1b[31m  |");  //UNNOWN
+	        break;
+	      default:
+	        usbPrintf("\x1b[33m  |");  //VWALL
+	        break;
+	    }
+	  }
+	  usbPrintf("\n\r+");
+	  for (int i = 0; i < MAZESIZE_X; i++) {
+	    switch (g_map.wallDataGet(i, j, south)) {
+	      case NOWALL:
+	        usbPrintf("\x1b[37m  +");  //NOWALL
+	        break;
+	      case WALL:
+	        usbPrintf("\x1b[37m--+");  //WALL
+	        break;
+	      case _UNKNOWN:
+	        usbPrintf("\x1b[31m--+");  //UNNOWN
+	        break;
+	      default:
+	        usbPrintf("\x1b[33m--+");  //VWALL
+	        break;
+	    }
+	  }
+	  usbPrintf("\n\r");
+	}
 }
 
 void ADJUST::adcValueView(void)
 {
-	g_device.motorDisable();
+	motorDisable();
 
 	while (1) {
-		std::cout <<"r_sen        is " << std::setw(6) << g_sensor.sen_r.value << std::endl;
-		std::cout <<"fr_sen       is " << std::setw(6) << g_sensor.sen_fr.value << std::endl;
-		std::cout <<"fl_sen       is " << std::setw(6) << g_sensor.sen_fl.value << std::endl;
-		std::cout <<"l_sen        is " << std::setw(6) << g_sensor.sen_l.value << std::endl;
-		std::cout <<"VDD          is " << std::setw(6) << g_sensor.battery_value << "mv" << std::endl;
-		std::cout<<std::endl;
+		usbPrintf("r_sen        is\t%d   \r\n", g_sensor.sen_r.value);
+		usbPrintf("fr_sen       is\t%d   \r\n", g_sensor.sen_fr.value);
+		usbPrintf("fl_sen       is\t%d  \r\n", g_sensor.sen_fl.value);
+		usbPrintf("l_sen        is\t%d   \r\n", g_sensor.sen_l.value);
+		usbPrintf("VDD          is\t%d mV\r\n", g_sensor.battery_value);
+		usbPrintf("\n\r");  //改行
+		delay(100);
+		usbPrintf("\x1b[2j");
+		usbPrintf("\x1b[0;0H");
 		delay(100);
 	}
 }
 
 void ADJUST::straightCheck(int section_check)
 {
-	g_device.motorEnable();
+	motorEnable();
 	delay(1000);
 	g_run.accelerate(HALF_SECTION, SEARCH_SPEED);
 	if (section_check > 1) {
@@ -126,42 +131,45 @@ void ADJUST::straightCheck(int section_check)
 	}
 	g_run.decelerate(HALF_SECTION, SEARCH_SPEED);
 
-	g_device.motorDisable();
+	motorDisable();
 }
 
 void ADJUST::rotationCheck(void)
 {
-	g_device.motorEnable();
+	motorEnable();
 	delay(1000);
 	for (int i = 0; i < 8; i++) {
 		g_run.rotate(right, 1);
 	}
-	g_device.motorDisable();
+	motorDisable();
 }
 
 void ADJUST::menu(void)
 {
-	unsigned char mode = 1;
+	unsigned char l_mode = 1;
 	char LED3_data;
 	char sw;
 
 	while (1) {
-		g_device.LEDSet(mode);
+		ledSet(l_mode);
 		while (1) {
-			sw = g_device.switchGet();
+			sw = switchGet();
 			if (sw != 0) break;
 			delay(33);
 			LED3_data ^= 1;
-			g_device.LEDSet((mode & 0x7) + ((LED3_data << 3) & 0x08));
+			ledSet((l_mode & 0x7) + ((LED3_data << 3) & 0x08));
 		}
 		LED3_data = 0;
 		switch (sw) {
       		case SW_RM:
-      			mode = g_misc.buttonInc(mode, 7, 1);
+      			l_mode = g_misc.buttonInc(l_mode, 7, 1);
       			break;
       		case SW_LM:
+				l_mode = g_misc.buttonDec(l_mode, 1, 7);
+				break;
+			case SW_CM:
       			g_misc.buttonOk();
-      			if (modeExec(mode) == 1) {
+      			if (modeExec(l_mode) == 1) {
       				return;
       			}
       			break;
@@ -173,7 +181,7 @@ void ADJUST::menu(void)
 
 unsigned char ADJUST::modeExec(unsigned char mode)
 {
-  g_device.motorEnable();
+  motorEnable();
   switch (mode) {
     case 1:
       adcValueView();
@@ -181,7 +189,6 @@ unsigned char ADJUST::modeExec(unsigned char mode)
     case 2:
       straightCheck(9);
       break;
-
     case 3:
       rotationCheck();
       break;

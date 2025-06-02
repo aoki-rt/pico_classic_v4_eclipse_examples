@@ -39,9 +39,9 @@ public:
 	void speedSet(double l_speed, double r_speed);
 	void stepGet(void);
 	void stop(void);	
-	void accelerate(int len, int tar_speed);
-	void oneStep(int len, int tar_speed);
-	void decelerate(int len, int tar_speed);
+	void accelerate(int len, int finish_speed);
+	void oneStep(int len, int init_speed);
+	void decelerate(int len, int init_speed);
 	void rotate(t_direction dir, int times);
 
 private:

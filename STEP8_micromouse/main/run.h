@@ -17,9 +17,7 @@
 
 
 #include <stdbool.h>
-#include "parameter.h"
-#include "device.h"
-#include "mytypedef.h"
+#include "map_manager.h"
 
 typedef struct
 {
@@ -35,33 +33,40 @@ typedef struct
 	bool enable;
 } t_control;
 
+typedef enum {
+  MOT_FORWARD = 1,  //TMC5240の方向に合わせた数字
+  MOT_BACK = 2
+} t_CW_CCW;
 
 class RUN
 {
 public:
-	void interruptControl(void);
-	void straight(int len, int init_speed, int max_speed, int finish_speed);
-	void accelerate(int len, int finish_speed);
-	void oneStep(int len, int tar_speed);
-	void decelerate(int len, int tar_speed);
-	void rotate(t_direction dir, int times);
-	bool moveFlagGet(void);
-	void stepIncRight(void);
-	void stepIncLeft(void);
+volatile double accel;
+volatile double speed;
+volatile double speed_target_r;
+volatile double speed_target_l; 
+volatile double upper_speed_limit;
+volatile double lower_speed_limit;
 
+t_control con_wall;
+
+	RUN();
+	void interrupt(void);
+	void counterClear(void);
+	void straight(int len, int init_speed, int max_sp, int finish_speed);
+	void accelerate(int len, int finish_speed);
+	void oneStep(int len, int init_speed);
+	void decelerate(int len, int init_speed);	
+	void rotate(t_local_direction dir, int times);
 
 
 private:
-    volatile unsigned int step_r, step_l;
-    double max_speed;
-    double min_speed;
-    double accel = 0.0;
-    volatile double speed = MIN_SPEED;
-
-    unsigned short step_hz_r = MIN_HZ;
-    unsigned short step_hz_l = MIN_HZ;
-
-    volatile bool motor_move = 0;
+	int step_lr_len,step_lr;
+	void dirSet(t_CW_CCW dir_left, t_CW_CCW dir_right);
+	void speedSet(double l_speed, double r_speed);
+	void stepGet(void);
+	void stay(double l_speed);  
+	void stop(void);  	
 };
 
 extern RUN g_run;

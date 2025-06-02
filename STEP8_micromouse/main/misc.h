@@ -15,12 +15,13 @@
 #ifndef MAIN_MISC_H_
 #define MAIN_MISC_H_
 
-#include "device.h"
-
 
 class MISC{
 public:
+	unsigned char mode_select;  
+	void modeExec(int mode);
 	short buttonInc(short data, short limit, short limit_data);
+	short buttonDec(short _data, short limit, short limit_data);	
 	void buttonOk(void);
 	void goalAppeal(void);
 };

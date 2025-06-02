@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+extern "C"{
+	#include "device.h"
+}
 
 #include "sensor.h"
-#include "device.h"
 #include "parameter.h"
 
 SENSOR g_sensor;
 
-void sensorInterruptControl(void){
+extern "C" void sensorInterrupt(void){
 	g_sensor.interrupt();
 }
 
@@ -37,7 +39,6 @@ SENSOR::SENSOR()
 	sen_r.th_control = CONTH_SEN_R;
 	sen_l.th_control = CONTH_SEN_L;
 
-	con_wall.kp = CON_WALL_KP;
 }
 
 void SENSOR::interrupt(void)
@@ -47,28 +48,23 @@ void SENSOR::interrupt(void)
 
 	switch (cnt) {
 		case 0:
-			sen_fr.p_value = sen_fr.value;
-			sen_fl.p_value = sen_fl.value;
-
-			g_device.sensorGetF(&sen_fl.value,&sen_fr.value);
-
+			sen_fr.value = sensorGetFR();
 			if (sen_fr.value > sen_fr.th_wall) {
 				sen_fr.is_wall = true;
 			} else {
 				sen_fr.is_wall = false;
 			}
+			break;
+		case 1:
+			sen_fl.value = sensorGetFL();
 			if (sen_fl.value > sen_fl.th_wall) {
 				sen_fl.is_wall = true;
 			} else {
 				sen_fl.is_wall = false;
 			}
 			break;
-		case 1:
-			sen_r.p_value = sen_r.value;
-			sen_l.p_value = sen_l.value;
-
-			g_device.sensorGetS(&sen_l.value,&sen_r.value);
-
+		case 2:
+			sen_r.value = sensorGetR();
 			if (sen_r.value > sen_r.th_wall) {
 				sen_r.is_wall = true;
 			} else {
@@ -81,6 +77,9 @@ void SENSOR::interrupt(void)
 				sen_r.error = 0;
 				sen_r.is_control = false;
 			}
+			break;
+		case 3:
+			sen_l.value = sensorGetL();
 			if (sen_l.value > sen_l.th_wall) {
 				sen_l.is_wall = true;
 			} else {
@@ -99,18 +98,21 @@ void SENSOR::interrupt(void)
 				bled_cnt = 0;
 			}
 
-			battery_value = (double)g_device.voltageGet() / 1.0 * (1.0 + 10.0);
+			battery_value = batteryVoltGet();
 
 			if (((battery_value - BATT_MIN) * 10 / (BATT_MAX - BATT_MIN)) > bled_cnt) {
-		    	g_device.BLEDSet(1);
-		    }else{
-		    	g_device.BLEDSet(2);
-		    }
+				bledSet(1);
+			}else{
+				bledSet(2);
+			}
+			if(battery_value < BATT_MIN){
+			  buzzerEnable(400);
+			  ledSet(0);
+			}			
 			break;
-	    default:
-	    	break;
-	  	}
-	  	cnt++;
-	  	if (cnt == 2) cnt = 0;
+		default:
+			break;
+	}
+	cnt++;
+	if (cnt >= 4) cnt = 0;
 }
-

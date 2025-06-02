@@ -18,7 +18,7 @@
 
 class FAST{
 public:
-	void run(short gx, short gy);
+	void run(char gx, char gy);
 };
 
 extern FAST g_fast;

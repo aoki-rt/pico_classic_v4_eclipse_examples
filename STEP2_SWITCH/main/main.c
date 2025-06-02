@@ -59,7 +59,7 @@ void app_main(void)
     	}
     	if (gpio_get_level(SW_C) == 0) {
     		gpio_set_level(LED1, (++g_state_c) & 0x01);
-    		gpio_set_level(LED2, (g_state_c) & 0x01);
+    		gpio_set_level(LED2, g_state_c & 0x01);
     	}
 		if (gpio_get_level(SW_L) == 0) {
 			gpio_set_level(LED3, (++g_state_l) & 0x01);

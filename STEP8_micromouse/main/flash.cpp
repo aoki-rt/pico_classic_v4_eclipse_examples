@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//フラッシュの初期化の確認をする場合はdefineのコメントを外す
+//#define FLASH_CHECK
+
+
 extern "C"
 {
 #include <stdio.h>
@@ -19,6 +23,7 @@ extern "C"
 #include <sys/unistd.h>
 #include <sys/stat.h>
 #include "esp_spiffs.h"
+#include "device.h"
 }
 
 #include <iostream>
@@ -26,12 +31,12 @@ extern "C"
 #include <fstream>
 
 #include "flash.h"
-#include "device.h"
+
 #include "map_manager.h"
 
 FLASH g_flash;
 
-//#define FLASH_CHECK
+
 
 void spiffsBegin(void){
 
@@ -93,9 +98,8 @@ void spiffsBegin(void){
 }
 
 void FLASH::mapCopy(void){
-	g_device.controlStop();
-	g_device.sensorStop();
-	g_device.pwmtimerStop();
+	controlInterruptStop();
+	sensorInterruptStop();
 
 	char read_data[1];
 
@@ -106,31 +110,29 @@ void FLASH::mapCopy(void){
 		std::cout<<"- failed to open file for reading"<<std::endl;
 		return;
 	}
-	for (int i = 0; i < 16; i++) {
-		for (int j = 0; j < 16; j++) {
+	for (int i = 0; i < MAZESIZE_X; i++) {
+		for (int j = 0; j < MAZESIZE_Y; j++) {
 			if(!inputfile.eof()){
 				inputfile.read(read_data,sizeof(read_data));
-				g_map_control.wallDataSet(i, j, north, ((unsigned char)read_data[0]) & 0x03);
-				g_map_control.wallDataSet(i, j, east, ((unsigned char)read_data[0] >> 2) & 0x03);
-				g_map_control.wallDataSet(i, j, south, ((unsigned char)read_data[0] >> 4) & 0x03);
-				g_map_control.wallDataSet(i, j, west, ((unsigned char)read_data[0] >> 6) & 0x03);
+				g_map.wallDataSet(i, j, north, ((unsigned char)read_data[0]) & 0x03);
+				g_map.wallDataSet(i, j, east, ((unsigned char)read_data[0] >> 2) & 0x03);
+				g_map.wallDataSet(i, j, south, ((unsigned char)read_data[0] >> 4) & 0x03);
+				g_map.wallDataSet(i, j, west, ((unsigned char)read_data[0] >> 6) & 0x03);
 			} else {
 				std::cout<<"Read Error"<<std::endl;
 			}
 		}
 	}
 	inputfile.close();
-	g_device.controlStart();
-	g_device.sensorStart();
-	g_device.pwmtimerStart();
+	controlInterruptStart();
+	sensorInterruptStart();
 }
 
 void FLASH::mapWrite(void){
 	unsigned char data_temp;
 
-	g_device.controlStop();
-	g_device.sensorStop();
-	g_device.pwmtimerStop();
+	controlInterruptStop();
+	sensorInterruptStop();
 
     std::ofstream outputfile;
     outputfile.open("/spiffs/map.txt");
@@ -139,12 +141,12 @@ void FLASH::mapWrite(void){
     	std::cout<<"- failed to open file for writing"<<std::endl;
     	return;
     }
-    for (int i = 0; i < 16; i++) {
-    	for (int j = 0; j < 16; j++) {
-    		data_temp = g_map_control.wallDataGet(i, j, north) +
-    				(g_map_control.wallDataGet(i, j, east) << 2) +
-					(g_map_control.wallDataGet(i, j, south) << 4) +
-					(g_map_control.wallDataGet(i, j, west) << 6);
+    for (int i = 0; i < MAZESIZE_X; i++) {
+    	for (int j = 0; j < MAZESIZE_Y; j++) {
+    		data_temp = g_map.wallDataGet(i, j, north) +
+    				(g_map.wallDataGet(i, j, east) << 2) +
+					(g_map.wallDataGet(i, j, south) << 4) +
+					(g_map.wallDataGet(i, j, west) << 6);
     		if (outputfile<<data_temp) {  //binary data write
     		} else {
     			std::cout<<"- write failed"<<std::endl;
@@ -153,9 +155,8 @@ void FLASH::mapWrite(void){
     }
 
     outputfile.close();
-    g_device.controlStart();
-    g_device.sensorStart();
-    g_device.pwmtimerStart();
+	controlInterruptStart();
+	sensorInterruptStart();
 
 }
 

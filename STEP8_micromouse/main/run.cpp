@@ -12,280 +12,286 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+extern "C"{
+	#include "device.h"
+}
+
 #include "run.h"
 #include "sensor.h"
-
- RUN g_run;
-
-
- void runInterruptControl(void){
- 	if(g_run.moveFlagGet()){
- 		g_run.interruptControl();
- 	}
- }
-
- void runIntteruptRight(void){
- 	if (g_run.moveFlagGet()) {
- 		g_run.stepIncRight();
- 	}
- }
-
- void runIntteruptLeft(void){
- 	if (g_run.moveFlagGet()) {
- 		g_run.stepIncLeft();
- 	}
- }
+#include "parameter.h"
+#include "TMC5240.h"
 
 
+RUN g_run;
 
-void RUN::interruptControl(void)
+RUN::RUN(){
+	speed = 0.0f;
+	accel = 0.0f;
+	speed_target_r = 0;
+	speed_target_l = 0;
+	upper_speed_limit = 0;
+	lower_speed_limit = 0;
+	step_lr_len=0;
+	step_lr=0;
+	con_wall.kp = CON_WALL_KP;
+}
+
+extern "C" void controlInterrupt(void){
+	g_run.interrupt();
+}
+
+void RUN::interrupt(void)
 {
-	double spd_r, spd_l;
 
 	speed = speed + accel;
 
-	if(speed > max_speed){
-		speed = max_speed;
+	if (speed > upper_speed_limit) {
+	  speed = upper_speed_limit;
 	}
-	if(speed < min_speed){
-		speed = min_speed;
+	if (speed < lower_speed_limit) {
+	  speed = lower_speed_limit;
 	}
 
-	if(g_sensor.con_wall.enable == true){
-		g_sensor.con_wall.p_error = g_sensor.con_wall.error;
+	if(con_wall.enable == true){
+		con_wall.p_error = con_wall.error;
 
 		if ((g_sensor.sen_r.is_control == true) && (g_sensor.sen_l.is_control == true)) {
-			g_sensor.con_wall.error = g_sensor.sen_r.error - g_sensor.sen_l.error;
+			con_wall.error = g_sensor.sen_r.error - g_sensor.sen_l.error;
 		} else {
-			g_sensor.con_wall.error = 2.0 * (g_sensor.sen_r.error - g_sensor.sen_l.error);
+			con_wall.error = 2.0 * (g_sensor.sen_r.error - g_sensor.sen_l.error);
 		}
 
-		g_sensor.con_wall.diff = g_sensor.con_wall.error - g_sensor.con_wall.p_error;
-		g_sensor.con_wall.sum += g_sensor.con_wall.error;
-		if (g_sensor.con_wall.sum > g_sensor.con_wall.sum_max) {
-			g_sensor.con_wall.sum = g_sensor.con_wall.sum_max;
-		} else if (g_sensor.con_wall.sum < (-g_sensor.con_wall.sum_max)) {
-			g_sensor.con_wall.sum = -g_sensor.con_wall.sum_max;
+		con_wall.diff = con_wall.error - con_wall.p_error;
+		con_wall.sum += con_wall.error;
+		if (con_wall.sum > con_wall.sum_max) {
+			con_wall.sum = con_wall.sum_max;
+		} else if (con_wall.sum < (-con_wall.sum_max)) {
+			con_wall.sum = -con_wall.sum_max;
 		}
-		g_sensor.con_wall.control = 0.001 * speed * g_sensor.con_wall.kp * g_sensor.con_wall.error;
-		spd_r = speed + g_sensor.con_wall.control;
-		spd_l = speed - g_sensor.con_wall.control;
+		con_wall.control = 0.001 * speed * con_wall.kp * con_wall.error;
+		speed_target_r = speed + con_wall.control;
+		speed_target_l = speed - con_wall.control;
 	} else {
-		spd_r = speed;
-    	spd_l = speed;
+		speed_target_r = speed;
+		speed_target_l = speed;
   	}
-	if (spd_r < MIN_SPEED) spd_r = MIN_SPEED;
-	if (spd_l < MIN_SPEED) spd_l = MIN_SPEED;
-
-	step_hz_r = (unsigned short)(spd_r / PULSE);
-	step_hz_l = (unsigned short)(spd_l / PULSE);
+	if (speed_target_r < MIN_SPEED) speed_target_r = MIN_SPEED;
+	if (speed_target_l < MIN_SPEED) speed_target_l = MIN_SPEED;
 
 }
 
-void RUN::straight(int len, int init_speed, int l_max_speed, int finish_speed)
+
+void RUN::dirSet(t_CW_CCW dir_left, t_CW_CCW dir_right)
+{
+  g_tmc5240.write(TMC5240_RAMPMODE, dir_left, dir_right);
+}
+
+void RUN::counterClear(void) { g_tmc5240.write(TMC5240_XACTUAL, 0, 0); }
+
+void RUN::speedSet(double l_speed, double r_speed)
+{
+  g_tmc5240.write(
+    TMC5240_VMAX, (unsigned int)(l_speed / (PULSE * 0.787)),
+    (unsigned int)(r_speed / (PULSE * 0.787)));
+}
+
+void RUN::stay(double l_speed) {
+  controlInterruptStop();
+  upper_speed_limit = lower_speed_limit = speed = l_speed;
+  accel = 0.0;
+  counterClear();
+  speedSet(l_speed, l_speed);
+  controlInterruptStart();
+}
+
+void RUN::stepGet(void)
+{
+  step_lr = g_tmc5240.readXactual();
+  step_lr_len = (int)((float)step_lr / 2.0 * PULSE);
+}
+
+void RUN::stop(void) {
+	g_tmc5240.write(TMC5240_VMAX, 0, 0);
+	delay(300); 
+}
+
+
+void RUN::straight(int len, int init_speed, int max_sp, int finish_speed)
 {
 	int obj_step;
 
-	g_device.controlStop();
-	max_speed = l_max_speed;
+  controlInterruptStop();
+	upper_speed_limit = (double)max_sp;
 	accel = SEARCH_ACCEL;
 
 	if (init_speed < MIN_SPEED) {
-		speed = MIN_SPEED;
-		step_r = 0;
-		step_l = 0;
+		speed = (double)MIN_SPEED;
 	} else {
-		speed = init_speed;
+		speed = (double)init_speed;
 	}
 	if (finish_speed < MIN_SPEED) {
 		finish_speed = MIN_SPEED;
 	}
-	if (init_speed < finish_speed) {
-		min_speed = MIN_SPEED;
-	} else {
-		min_speed = finish_speed;
-	}
-	step_hz_r = step_hz_l = (unsigned short)(speed / PULSE);
-	g_device.pwmHzSet(step_hz_l,step_hz_r);
+	lower_speed_limit = (double)finish_speed;
 
-	g_sensor.con_wall.enable = true;
+	con_wall.enable = true;
+	speedSet(speed, speed);
+	dirSet(MOT_FORWARD, MOT_FORWARD);
 	obj_step = (int)((float)len * 2.0 / PULSE);
-	g_device.motorMoveDir(MOT_FORWARD,MOT_FORWARD);
+	controlInterruptStart();
 
-	g_device.controlStart();
-	g_device.pwmtimerStart();
-
-	motor_move = 1;
-	while ((len - (step_r + step_l) / 2.0 * PULSE) >
-			 (((speed * speed) - (finish_speed * finish_speed)) / (2.0 * 1000.0 * SEARCH_ACCEL))) {
-		continue;
+	while (1){
+		stepGet();
+		speedSet(speed_target_l, speed_target_r);		
+		if((int)(len - step_lr_len) <
+			 (int)(((speed * speed) - (lower_speed_limit * lower_speed_limit)) / (2.0 * 1000.0 * accel))) {
+				break;
+		}
+	
 	}
-	accel = -1.0 * SEARCH_ACCEL;
+	accel = -1.0 * accel;
 
-	while ((step_r + step_l) < obj_step) {
-		continue;
+	while (1){
+		stepGet();
+		speedSet(speed_target_l, speed_target_r);
+		if(step_lr  < obj_step) {
+			break;
+		}
 	}
 
-	if (finish_speed == SEARCH_SPEED) {
-		g_device.controlStop();
-		max_speed = min_speed =(double)finish_speed;
-		speed = (double)finish_speed;
-		accel = 0.0;
-		step_r = 0;
-		step_l = 0;
-		g_device.controlStart();
-	} else {
-		motor_move = 0;
+	if (finish_speed == MIN_SPEED) {
+		stop();
+	}else{
+		stay(finish_speed);
 	}
 }
+
 
 void RUN::accelerate(int len, int finish_speed)
 {
 	int obj_step;
-	g_device.controlStop();
-	max_speed = finish_speed;
+
+	controlInterruptStop();
 	accel = SEARCH_ACCEL;
-	speed = min_speed = MIN_SPEED;
-	step_hz_r = step_hz_l = (unsigned short)(speed / PULSE);
-	g_device.pwmHzSet(step_hz_l,step_hz_r);
-	step_r = 0;
-	step_l = 0;
-	g_sensor.con_wall.enable = true;
-	obj_step = (int)((float)len * 2.0 / PULSE);
-	g_device.motorMoveDir(MOT_FORWARD,MOT_FORWARD);
-	g_device.pwmtimerStart();
-	g_device.controlStart();
-	motor_move = 1;
+	speed = lower_speed_limit = (double)MIN_SPEED;
+	upper_speed_limit = (double)finish_speed;
+	con_wall.enable = true;	
+	dirSet(MOT_FORWARD,MOT_FORWARD);
+	speedSet(speed,speed);
+	counterClear();	
+	obj_step = (int)((float)len * 2.0 /PULSE);
+	controlInterruptStart();
 
-	while ((step_r + step_l) < obj_step) {
-		continue;
+	while (1){
+		stepGet();
+   		speedSet(speed_target_l, speed_target_r);
+		if(step_lr > obj_step){
+			break;
+		}
 	}
-	g_device.controlStop();
-	max_speed = min_speed = (double)finish_speed;
-	speed = (double)finish_speed;
-	accel = 0.0;
-	step_r = 0;
-	step_l = 0;
-	g_device.controlStart();
-
+	stay(finish_speed);
 }
 
-void RUN::oneStep(int len, int tar_speed)
+void RUN::oneStep(int len, int init_speed)
 {
 	int obj_step;
-	g_device.controlStop();
-	max_speed = tar_speed;
-	speed = min_speed = tar_speed;
-	accel = 0.0;
-	step_hz_r = step_hz_l = (unsigned short)(speed / PULSE);
-	g_device.pwmHzSet(step_hz_l,step_hz_r);
-	g_sensor.con_wall.enable = true;
+	
+	controlInterruptStop();	
+	accel = 0.0;	
+	speed = lower_speed_limit = upper_speed_limit = (float)init_speed;
+	con_wall.enable = true;
+	dirSet(MOT_FORWARD,MOT_FORWARD);
+	speedSet(speed,speed);
 	obj_step = (int)((float)len * 2.0 / PULSE);
-	g_device.motorMoveDir(MOT_FORWARD,MOT_FORWARD);
-	g_device.controlStart();
-
-	while ((step_r + step_l) < obj_step) {
-		continue;
+	controlInterruptStart();
+	
+	while (1){
+		stepGet();
+    	speedSet(speed_target_l, speed_target_r);
+		if(step_lr > obj_step){
+			break;
+		}
 	}
-	g_device.controlStop();
-	max_speed = min_speed = (double)tar_speed;
-	speed = (double)tar_speed;
-	accel = 0.0;
-	step_r = 0;
-	step_l = 0;
-	g_device.controlStart();
-
+	stay(init_speed);
 }
 
-void RUN::decelerate(int len, int tar_speed)
+void RUN::decelerate(int len, int init_speed)
 {
 	int obj_step;
-	g_device.controlStop();
-	max_speed = tar_speed;
-	accel = 0.0;
-	speed = min_speed = tar_speed;
-	step_hz_r = step_hz_l = (unsigned short)(speed / PULSE);
-	g_device.pwmHzSet(step_hz_l,step_hz_r);
-	g_sensor.con_wall.enable = true;
+	
+	controlInterruptStop();	
+	accel = SEARCH_ACCEL;
+	speed = upper_speed_limit = init_speed;
+	lower_speed_limit = MIN_SPEED;
+	con_wall.enable = true;
+	dirSet(MOT_FORWARD,MOT_FORWARD);
+	speedSet(speed,speed);
 	obj_step = (int)((float)len * 2.0 / PULSE);
-	g_device.motorMoveDir(MOT_FORWARD,MOT_FORWARD);
-	g_device.controlStart();
-
-	while ((len - (step_r + step_l) / 2.0 * PULSE) >
-		(((speed * speed) - (MIN_SPEED * MIN_SPEED)) / (2.0 * 1000.0 * SEARCH_ACCEL))) {
-		continue;
+	controlInterruptStart();
+	
+	while(1){
+		stepGet();
+    	speedSet(speed_target_l, speed_target_r);
+		if( (int)(len - step_lr_len) < 
+	 	    (int)(((speed * speed) - (MIN_SPEED * MIN_SPEED)) / (2.0 * 1000.0 * accel))) {
+				break;
+		}
 	}
-	accel = -1.0 * SEARCH_ACCEL;
-	min_speed = MIN_SPEED;
 
-	while((step_r + step_l) < obj_step){
-		continue;
+	accel = -1 * accel;
+
+	while (1){
+		stepGet();
+  		speedSet(speed_target_l, speed_target_r);
+		if(step_lr > obj_step){
+			break;
+		}
 	}
-	motor_move = 0;
-	g_device.pwmtimerStop();
-	delay(300);
+	stop();
 }
 
-void RUN::rotate(t_direction dir, int times)
+void RUN::rotate(t_local_direction dir, int times)
 {
 	int obj_step;
-	g_device.controlStop();
-	max_speed = SEARCH_SPEED;
-	accel =TURN_ACCEL;
-	speed = min_speed = MIN_SPEED;
-	step_hz_r = step_hz_l = (unsigned short)(speed / PULSE);
-	g_device.pwmHzSet(step_hz_l,step_hz_r);
-	step_r = 0;
-	step_l = 0;
-	g_sensor.con_wall.enable = false;
+	
+	controlInterruptStop();
+	accel = TURN_ACCEL;
+	upper_speed_limit = SEARCH_SPEED;
+	speed = lower_speed_limit = MIN_SPEED;
+	con_wall.enable = false;
 	obj_step = (int)(TREAD_WIDTH * PI / 4.0 * (float)times * 2.0 / PULSE);
-
 	switch (dir) {
-		case right:
-			g_device.motorMoveDir(MOT_FORWARD,MOT_BACK);
-			g_device.pwmtimerStart();
-			motor_move = 1;
-			break;
-		case left:
-			g_device.motorMoveDir(MOT_BACK,MOT_FORWARD);
-			g_device.pwmtimerStart();
-			motor_move = 1;
-    		break;
-		default:
-			motor_move = 0;
-			break;
+	case right:
+      dirSet(MOT_FORWARD, MOT_BACK);  
+		break;
+	case left:
+      dirSet(MOT_BACK,MOT_FORWARD);
+		break;
+	default:
+      dirSet(MOT_FORWARD, MOT_FORWARD);
+		break;
 	}
-	g_device.controlStart();
+	speedSet(MIN_SPEED,MIN_SPEED);   
+	counterClear();
+	controlInterruptStart();
 
-	while (((obj_step - (step_r + step_l)) * PULSE) >
-		(((speed * speed) - (MIN_SPEED * MIN_SPEED)) / (2.0 * 1000.0 * TURN_ACCEL))) {
-		continue;
+	while (1) {
+	  stepGet();
+      speedSet(speed_target_l, speed_target_r);
+	  if ((int)((obj_step/2.0*PULSE) - step_lr_len) < (int)(((speed * speed) - (MIN_SPEED * MIN_SPEED)) / (2.0 * 1000.0 * accel))) {
+	    break;
+	  }
 	}
+	
 	accel = -1.0 * TURN_ACCEL;
-
-	while ((step_r + step_l) < obj_step) {
-		continue;
+	
+	while (1) {
+	  stepGet();
+      speedSet(speed_target_l, speed_target_r);
+	  if (step_lr > obj_step) {
+	    break;
+	  }
 	}
 
-	motor_move = 0;
-	g_device.pwmtimerStop();
-	delay(300);
+	stop();
 }
-
-bool RUN::moveFlagGet(void)
-{
-	return motor_move;
-}
-
-void RUN::stepIncRight(void)
-{
-	step_r = step_r+1;
-	g_device.pwmHzSetRight(step_hz_r);
-}
-
-void RUN::stepIncLeft(void)
-{
-	step_l = step_l+1;
-	g_device.pwmHzSetLeft(step_hz_l);
-}
-
